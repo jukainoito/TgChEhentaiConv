@@ -1,0 +1,7 @@
+requests>=2.21.0
+python-telegram-bot>=12.4.2
+telegraph>=1.4.0
+PyYAML>=3.13
+natsort>=7.0.1
+psycopg2-binary>=2.8.4
+lxml>=4.2.5

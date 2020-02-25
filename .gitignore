@@ -1,0 +1,9 @@
+/.git
+__pycache__
+.DS_Store
+.gitignore
+archiver
+*.yaml
+*cookies.json
+run.log
+lock.pid
