@@ -74,7 +74,8 @@ class TgHentaiBot(object):
 	def initDb(self):
 		self.db = HentaiDatabase(self.CONFIG['database']['host'], 
 			self.CONFIG['database']['database'], 
-			self.CONFIG['database']['user'])
+			self.CONFIG['database']['user'],
+			self.CONFIG['database']['password'],)
 
 	def initBot(self):
 		botRequest = None
@@ -320,6 +321,7 @@ def readEnvConfig():
 		'TG_HENTAI_DATABASE': getValueOfDict('TG_HENTAI_DATABASE', os.environ),
 		'TG_HENTAI_DATABASE_HOST': getValueOfDict('TG_HENTAI_DATABASE_HOST', os.environ),
 		'TG_HENTAI_DATABASE_USER': getValueOfDict('TG_HENTAI_DATABASE_USER', os.environ),
+		'TG_HENTAI_DATABASE_PASSWORD': getValueOfDict('TG_HENTAI_DATABASE_PASSWORD', os.environ),
 		'TG_HENTAI_BOT_TOKEN': getValueOfDict('TG_HENTAI_BOT_TOKEN', os.environ),
 		'TG_HENTAI_BOT_PROXY': getValueOfDict('TG_HENTAI_BOT_PROXY', os.environ),
 		'TG_HENTAI_BOT_CHAT_ID': getValueOfDict('TG_HENTAI_BOT_CHAT_ID', os.environ),
@@ -340,7 +342,8 @@ def readEnvConfig():
 		"databse": {
 			"host": config['TG_HENTAI_DATABASE_HOST'],
 			"database": config['TG_HENTAI_DATABASE'],
-			"user": config['TG_HENTAI_DATABASE_USER']
+			"user": config['TG_HENTAI_DATABASE_USER'],
+			"password": config['TG_HENTAI_DATABASE_PASSWORD']
 		},
 		"bot": {
 			"token": config['TG_HENTAI_BOT_TOKEN'],

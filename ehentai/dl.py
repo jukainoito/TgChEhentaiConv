@@ -28,7 +28,9 @@ class EHentaiDownloader(object):
 			}
 		if save_dir is None:
 			save_dir = '.'
-		self.SAVE_DIR = save_dir
+		self.SAVE_DIR = os.path.normpath(os.path.abspath(save_dir))
+		if  not os.path.exists(self.SAVE_DIR):
+			os.makedirs(self.SAVE_DIR)
 
 		self.hentai_cookies = HentaiCookies(cookies_path)
 

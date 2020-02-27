@@ -1,4 +1,5 @@
 requests>=2.21.0
+PySocks>=1.7.1
 python-telegram-bot>=12.4.2
 telegraph>=1.4.0
 PyYAML>=3.13

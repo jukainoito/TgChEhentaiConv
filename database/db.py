@@ -12,11 +12,12 @@ logger = logging.getLogger(__name__)
 
 class HentaiDatabase(object):
 
-	def __init__(self, host, database, user, port="5432"):
+	def __init__(self, host, database, user, password,port="5432"):
 		self.database = database
 		self.host = host
 		self.user = user
 		self.port = port
+		self.password = password if password is not None and len(password)>0 else None
 		self.conn = None
 		self.init()
 
@@ -36,7 +37,7 @@ class HentaiDatabase(object):
 
 	def connect(self):
 		logger.info('Start connect to database: {}:{} {} {}'.format(self.host, self.port, self.user, self.database))
-		self.conn = psycopg2.connect(database=self.database, user=self.user, host=self.host, port=self.port)
+		self.conn = psycopg2.connect(database=self.database, user=self.user, host=self.host, port=self.port, password=self.password)
 		return self.conn
 
 	@check_conn
