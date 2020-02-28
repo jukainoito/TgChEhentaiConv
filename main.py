@@ -1,10 +1,18 @@
 # -*- coding: utf-8 -*-
+import sys, os, json, yaml, zipfile, shutil, threading, time, signal, telegram
 
-import os
-import zipfile
-import shutil
-import json
+from natsort import natsorted
 from urllib.parse import urlparse
+from PIL import Image
+from io import BytesIO
+
+
+import logging, argparse
+
+import urllib3
+urllib3.disable_warnings()
+
+from daemon import Daemon
 
 from database import HentaiDatabase
 from bot import TelegramBot
@@ -12,33 +20,12 @@ from database import HentaiDatabase
 from utils import get_hentai_url_from_text
 from ehentai import EHentaiDownloader
 from web import HentaiTelegraph, upload_file
-import telegram
 
-from natsort import natsorted
-
-import threading
-import time
-import signal
-
-import urllib3
-urllib3.disable_warnings()
-
-
-import yaml
-
-import sys
 
 PROGRAM_DIR_PATH = os.path.dirname(os.path.abspath(sys.argv[0]))
 PID_LOCK_PATH = os.path.join(PROGRAM_DIR_PATH, 'lock.pid')
 DEFAULT_LOG_PATH = os.path.join(PROGRAM_DIR_PATH, 'run.log')
 
-import logging
-
-from daemon import Daemon
-
-
-
-import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "-stop", "--stop", help="stop daemon", action="store_true")
 parser.add_argument("-c", "-config", "--config", help="YAML config file", action="store")
@@ -102,7 +89,6 @@ class TgHentaiBot(object):
 		maxUpdateId = self.db.get_max_update_id()
 		if IS_DEBUG:
 			logger.debug('maxUpdateId: {}'.format(maxUpdateId))
-			maxUpdateId = 0
 		updates = self.bot.get_updates(maxUpdateId + 1)
 		for update in updates:
 			logger.info('Handle update id: {}'.format(update.update_id))
@@ -147,6 +133,18 @@ class TgHentaiBot(object):
 				self.db.set_downloaded_msg(updateId)
 
 
+	def compressImage(self, inputFile, targetSize=5*1024*1024, step=5, quality=100):
+		im = Image.open(inputFile)
+		if os.path.getsize(inputFile) >= (targetSize-1024):
+			while quality>0:
+				imgIO = BytesIO()
+				im.save(imgIO, 'jpeg', quality=quality)
+				if imgIO.tell() < (targetSize-1024):
+					im.save(inputFile, 'jpeg', quality=quality)
+					break
+				quality = quality - step
+
+
 	def unzip(self, zipFilePath, unZipDir):
 		logger.info('Start unzip file: {}'.format(zipFilePath))
 
@@ -160,6 +158,14 @@ class TgHentaiBot(object):
 		uploadFiles = os.listdir(imageDir)
 		uploadFiles = natsorted(uploadFiles)
 		uploadFiles = list(map(lambda file: imageDir+'/'+file, uploadFiles))
+
+		# removeFiles = []
+		for uploadFile in uploadFiles:
+			fileSize = os.path.getsize(uploadFile)
+			if int(fileSize/1024) > (5*1024-1):
+				self.compressImage(uploadFile)
+				# removeFiles.append(uploadFile)
+
 		urls = []
 		if len(uploadFiles) > 20:
 			up_size = len(uploadFiles)
@@ -230,6 +236,7 @@ class TgHentaiBot(object):
 
 	def doEdit(self):
 		datas = self.db.get_unedited();
+		logger.debug('Satrt Edit: {}'.format(datas))
 		for data in datas:
 			updateId = data['update_id']
 			chatId = data['chat_id']
