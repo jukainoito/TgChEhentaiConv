@@ -1,3 +1,4 @@
 # -*- coding: utf-8 -*-
 
-from .db import HentaiDatabase
+from .pgsql import HentaiPgDb
+from .sqlite import HentaiSqliteDb

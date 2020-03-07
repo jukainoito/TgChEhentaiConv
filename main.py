@@ -14,9 +14,8 @@ urllib3.disable_warnings()
 
 from daemon import Daemon
 
-from database import HentaiDatabase
 from bot import TelegramBot
-from database import HentaiDatabase
+from database import HentaiPgDb, HentaiSqliteDb
 from utils import get_hentai_url_from_text
 from ehentai import EHentaiDownloader
 from web import HentaiTelegraph, upload_file
@@ -25,6 +24,7 @@ from web import HentaiTelegraph, upload_file
 PROGRAM_DIR_PATH = os.path.dirname(os.path.abspath(sys.argv[0]))
 PID_LOCK_PATH = os.path.join(PROGRAM_DIR_PATH, 'lock.pid')
 DEFAULT_LOG_PATH = os.path.join(PROGRAM_DIR_PATH, 'run.log')
+DEFAULT_SQLITE_PATH = os.path.join(PROGRAM_DIR_PATH, 'hentai.db')
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-s", "-stop", "--stop", help="stop daemon", action="store_true")
@@ -59,10 +59,13 @@ class TgHentaiBot(object):
 
 
 	def initDb(self):
-		self.db = HentaiDatabase(self.CONFIG['database']['host'], 
-			self.CONFIG['database']['database'], 
-			self.CONFIG['database']['user'],
-			self.CONFIG['database']['password'],)
+		if self.CONFIG['database']['type'].upper() == 'POSTGRESQL':
+			self.db = HentaiPgDb(self.CONFIG['database']['host'], 
+				self.CONFIG['database']['database'], 
+				self.CONFIG['database']['user'],
+				self.CONFIG['database']['password'],)
+		if self.CONFIG['database']['type'].upper() == 'SQLITE':
+			self.db = HentaiSqliteDb(self.CONFIG['database']['path'])
 
 	def initBot(self):
 		botRequest = None
@@ -100,10 +103,6 @@ class TgHentaiBot(object):
 					if len(res) == 0:
 						self.db.add_msg(update.update_id, update.channel_post.message_id, update.channel_post.chat.id, update.channel_post.text, urls)
 					self.addUrls(matchUrls, urls)
-					# inUrls = list(map(lambda tmp: temp['url'], self.db.has_urls(urls)))
-					# noInUrls = list(filter(lambda url: (url[0] not in inUrls), matchUrls))
-					# for url in noInUrls:
-					# 	self.db.add_url(url[0], url[1], url[2], url[3])
 
 	def doSingleDownloadUrl(self, urlData):
 		pageUrl = urlData['url']
@@ -223,6 +222,7 @@ class TgHentaiBot(object):
 	def doUpload(self):
 		datas = self.db.get_unuploaded()
 		hasErr = 0
+		logger.debug('Satrt Upload: {}'.format(datas))
 		for data in datas:
 			updateId = data['update_id']
 			for urlData in data['url_array']:
@@ -325,7 +325,9 @@ def hasValueOfDict(key, dictData):
 def readEnvConfig():
 	config = {
 		'TG_HENTAI_ALL_PROXY': getValueOfDict('TG_HENTAI_ALL_PROXY', os.environ),
-		'TG_HENTAI_DATABASE': getValueOfDict('TG_HENTAI_DATABASE', os.environ),
+		'TG_HENTAI_DATABASE_TYPE': getValueOfDict('TG_HENTAI_DATABASE_TYPE', os.environ),
+		'TG_HENTAI_DATABASE_PATH': getValueOfDict('TG_HENTAI_DATABASE_PATH', os.environ),
+		'TG_HENTAI_DATABASE_DATABASE': getValueOfDict('TG_HENTAI_DATABASE_DATABASE', os.environ),
 		'TG_HENTAI_DATABASE_HOST': getValueOfDict('TG_HENTAI_DATABASE_HOST', os.environ),
 		'TG_HENTAI_DATABASE_USER': getValueOfDict('TG_HENTAI_DATABASE_USER', os.environ),
 		'TG_HENTAI_DATABASE_PASSWORD': getValueOfDict('TG_HENTAI_DATABASE_PASSWORD', os.environ),
@@ -343,12 +345,19 @@ def readEnvConfig():
 	config['TG_HENTAI_EHENTAI_PROXY'] = config['TG_HENTAI_EHENTAI_PROXY'] if not isEmpteString(config['TG_HENTAI_EHENTAI_PROXY']) else config['TG_HENTAI_ALL_PROXY']
 	config['TG_HENTAI_TELEGRAPH_PROXY'] = config['TG_HENTAI_TELEGRAPH_PROXY'] if not isEmpteString(config['TG_HENTAI_TELEGRAPH_PROXY']) else config['TG_HENTAI_ALL_PROXY']
 	config['TG_HENTAI_LOG'] = config['TG_HENTAI_LOG'] if not isEmpteString(config['TG_HENTAI_LOG']) else DEFAULT_LOG_PATH
-	
+	if isEmpteString(config['TG_HENTAI_DATABASE_TYPE']):
+		if config['TG_HENTAI_DATABASE_HOST'] is None:
+			config['TG_HENTAI_DATABASE_TYPE'] = 'sqlite'
+			config['TG_HENTAI_DATABASE_PATH'] = config['TG_HENTAI_DATABASE_PATH'] if not isEmpteString(config['TG_HENTAI_DATABASE_PATH']) else DEFAULT_SQLITE_PATH
+		else:
+			config['TG_HENTAI_DATABASE_TYPE'] = 'postgresql'
 	return {
 		"log": config['TG_HENTAI_LOG'],
 		"databse": {
+			"type": config['TG_HENTAI_DATABASE_TYPE'],
+			"path": config['TG_HENTAI_DATABASE_PATH'],
 			"host": config['TG_HENTAI_DATABASE_HOST'],
-			"database": config['TG_HENTAI_DATABASE'],
+			"database": config['TG_HENTAI_DATABASE_DATABASE'],
 			"user": config['TG_HENTAI_DATABASE_USER'],
 			"password": config['TG_HENTAI_DATABASE_PASSWORD']
 		},
@@ -380,6 +389,19 @@ def readConfigFromYAML(file):
 			if not hasValueOfDict('proxy', yml['telegraph']):
 				yml['telegraph']['proxy'] = allProxy
 
+			if not hasValueOfDict('database', yml) or yml['database'] is None:
+				yml['database'] = {
+					'type': 'sqlite',
+					'path': DEFAULT_SQLITE_PATH
+				}
+			else:
+				if not hasValueOfDict('type', yml['database']) or getValueOfDict('type', yml['database']).upper() == 'SQLITE':
+					if hasValueOfDict('host', yml['database']):
+						yml['database']['type'] = 'postgresql'
+					else:
+						yml['database']['type'] = 'sqlite'
+						yml['database']['path'] = DEFAULT_SQLITE_PATH if isEmpteString(getValueOfDict('path', yml['database'])) else yml['database']['path']
+				
 
 			if getValueOfDict('log', yml) is None:
 				yml['log'] = DEFAULT_LOG_PATH
