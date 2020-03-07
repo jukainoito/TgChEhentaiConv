@@ -131,7 +131,7 @@ class HentaiSqliteDb(HentaiDatabase):
 		cur.close()
 		if dictRows[0]['max'] is None:
 			return 0
-		return dictRows[0]['max']
+		return int(dictRows[0]['max'])
 
 
 	@check_conn
