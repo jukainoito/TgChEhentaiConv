@@ -31,12 +31,14 @@ parser.add_argument("-s", "-stop", "--stop", help="stop daemon", action="store_t
 parser.add_argument("-c", "-config", "--config", help="YAML config file", action="store")
 parser.add_argument("-delete", "--delete", help="delete download archiver file", action="store_true")
 parser.add_argument("-debug", "--debug", help="debug", action="store_true")
+parser.add_argument("-f", "-force", "--force", help="force,stop runing start new", action="store")
 args = parser.parse_args()
 
 IS_DELETE_ARCHIVER = args.delete
 IS_STOP = args.stop
 IS_DEBUG = args.debug
 YAML_CONFIG_PATH = None
+IS_FORCE = args.force
 if args.config is not None:
 	YAML_CONFIG_PATH = os.path.normpath(os.path.abspath(args.config))
 
@@ -412,6 +414,8 @@ def readConfigFromYAML(file):
 
 if __name__ == '__main__':
 	app = App(PID_LOCK_PATH)
+	if IS_FORCE:
+		app.stop()
 	if not IS_STOP:
 		if IS_DEBUG:
 			app.run()
